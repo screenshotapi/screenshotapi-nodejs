@@ -3,6 +3,23 @@ const Path = require('path');
 const sleep = require('sleep-async')();
 const retryDelaySecs = 5;
 
+module.exports = {
+  getScreenshot,
+  captureScreenshot,
+  retrieveScreenshot
+};
+
+function getScreenshot(apikey, captureRequest, saveToPath) {
+  return new Promise( (resolve, reject) => {
+    captureScreenshot(apikey, captureRequest)
+      .then( (captureRequestKey) => {
+        return retrieveScreenshot(apikey, captureRequestKey, saveToPath)
+      })
+      .then( (localFile) => resolve(localFile) )
+      .catch( (err) => reject(err) );
+  });
+}
+
 function captureScreenshot(apikey, captureRequest) {
   return new Promise( (resolve, reject) => {
     var post_options = {
@@ -81,16 +98,5 @@ function download(imageUrl, localFile) {
     catch (err) {
       reject(err);
     }
-  });
-}
-
-function getScreenshot(apikey, captureRequest, saveToPath) {
-  return new Promise( (resolve, reject) => {
-    captureScreenshot(apikey, captureRequest)
-      .then( (captureRequestKey) => {
-        return retrieveScreenshot(apikey, captureRequestKey, saveToPath)
-      })
-      .then( (localFile) => resolve(localFile) )
-      .catch( (err) => reject(err) );
   });
 }

@@ -1,11 +1,11 @@
 {
   "name": "screenshotapi",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "Node.js API for ScreenshotApi.io",
   "main": "screenshotapi.js",
   "repository": {
     "type" : "git",
-    "url" : "https://github.com/screenshotapi/screenshotapi-js.git"
+    "url" : "https://github.com/screenshotapi/screenshotapi-nodejs.git"
   },
   "dependencies": {
     "request": "^2.79.0",

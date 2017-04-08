@@ -93,7 +93,12 @@ function download(imageUrl, localFile) {
       let imageStream = request(imageUrl);
       let writeStream = fs.createWriteStream(localFile);
       imageStream.pipe(writeStream);
-      resolve();
+      writeStream.on('finish', () => {
+        resolve();
+      });
+      writeStream.on('error', () => {
+        reject(new Error('Error writing stream.'));
+      });
     }
     catch (err) {
       reject(err);

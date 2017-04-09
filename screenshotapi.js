@@ -5,9 +5,17 @@ const retryDelaySecs = 5;
 
 module.exports = {
   getScreenshot,
+  getScreenshotReturningTemporaryUrl,
   captureScreenshot,
-  retrieveScreenshot
+  retrieveScreenshot,
+  setDebugOutputMode
 };
+
+var showDebugOutput = false;
+
+function setDebugOutputMode(showOutput) {
+  showDebugOutput = showOutput;
+}
 
 function getScreenshot(apikey, captureRequest, saveToPath) {
   return new Promise( (resolve, reject) => {
@@ -20,6 +28,17 @@ function getScreenshot(apikey, captureRequest, saveToPath) {
   });
 }
 
+function getScreenshotReturningTemporaryUrl(apikey, captureRequest) {
+  return new Promise( (resolve, reject) => {
+    captureScreenshot(apikey, captureRequest)
+      .then( (captureRequestKey) => {
+        return retrieveScreenshotTemporaryUrl(apikey, captureRequestKey)
+      })
+      .then( (url) => resolve(url) )
+      .catch( (err) => reject(err) );
+  });  
+}
+
 function captureScreenshot(apikey, captureRequest) {
   return new Promise( (resolve, reject) => {
     var post_options = {
@@ -30,7 +49,9 @@ function captureScreenshot(apikey, captureRequest) {
       body: JSON.stringify(captureRequest)
     };
 
-    // console.log(`Requesting capture for ${captureRequest.url}`);
+    if (showDebugOutput) {
+      console.log(`Requesting capture for ${captureRequest.url}`);
+    }
     request(post_options, (error, response, body) => {
       if (error) {
         reject(error);
@@ -41,7 +62,9 @@ function captureScreenshot(apikey, captureRequest) {
           reject(`Error requesting capture: ${body}`);
         } else {
           var json_results = JSON.parse(body);
-          // console.log('Accepted request with key: ' + json_results.key);
+          if (showDebugOutput) {
+            console.log('Accepted request with key: ' + json_results.key);
+          }
           resolve(json_results.key);
         }
       }
@@ -49,9 +72,11 @@ function captureScreenshot(apikey, captureRequest) {
   });
 }
 
-function retrieveScreenshot(apikey, key, saveToPath) {
+function retrieveScreenshotTemporaryUrl(apikey, key) {
   return new Promise( (resolve, reject) => {
-    // console.log(`Trying to retrieve: ${key}`);
+    if (showDebugOutput) {
+      console.log(`Trying to retrieve: ${key}`);
+    }
     const retrieve_url = 'https://api.screenshotapi.io/retrieve?key=' + key;
     const options = { headers: { 'apikey': apikey } };
 
@@ -60,23 +85,19 @@ function retrieveScreenshot(apikey, key, saveToPath) {
         reject(error);
       } else {
         let json_results = JSON.parse(body);
+        //console.log(json_results);
         if (json_results.status === 'ready') {
-          let localFile = Path.join(saveToPath, `${key}.png`);
-          download(json_results.imageUrl, localFile)
-          .then( () => {
-            // console.log(`Saved screenshot to ${localFile}`)
-            resolve(localFile);
-          })
-          .catch( (err) => {
-            // console.error(err, 'Error saving screenshot');
-            reject(err);
-          })
+          resolve(json_results.imageUrl);
+        } else if (json_results.status === 'error') {
+          reject(new Error(json_results.msg));
         } else {
-          // console.log(`Screenshot not yet ready.. waiting for ${retryDelaySecs} seconds.`);
+          if (showDebugOutput) {
+            console.log(`Screenshot not yet ready.. waiting for ${retryDelaySecs} seconds.`);
+          }
           sleep.sleep(
             retryDelaySecs * 1000, () => {
-              retrieveScreenshot(apikey, key, saveToPath)
-                .then( (localFile) => resolve(localFile) )
+              retrieveScreenshotTemporaryUrl(apikey, key)
+                .then( (url) => resolve(url) )
                 .catch( (err) => reject(err) );
             });
         }
@@ -85,16 +106,41 @@ function retrieveScreenshot(apikey, key, saveToPath) {
   });
 }
 
+
+function retrieveScreenshot(apikey, key, saveToPath) {
+  return new Promise( (resolve, reject) => {
+    retrieveScreenshotTemporaryUrl(apikey, key)
+    .then( url => {
+      let localFile = Path.join(saveToPath, `${key}.png`);
+      return download(url, localFile);
+    })
+    .then( (localFile) => {
+      if (showDebugOutput) {
+        console.log(`Saved screenshot to ${localFile}`)
+      }
+      resolve(localFile);
+    })
+    .catch( (err) => {
+      if (showDebugOutput) {
+        console.error(err, 'Error saving screenshot');
+      }
+      reject(err);
+    })
+  });
+}
+
 function download(imageUrl, localFile) {
   return new Promise( (resolve, reject) => {
     try {
-      // console.log(`Downloading ${imageUrl}`);
+      if (showDebugOutput) {
+        console.log(`Downloading ${imageUrl}`);
+      }
       const fs = require('fs');
       let imageStream = request(imageUrl);
       let writeStream = fs.createWriteStream(localFile);
       imageStream.pipe(writeStream);
       writeStream.on('finish', () => {
-        resolve();
+        resolve(localFile);
       });
       writeStream.on('error', () => {
         reject(new Error('Error writing stream.'));

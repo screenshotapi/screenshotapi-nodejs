@@ -142,8 +142,8 @@ function download(imageUrl, localFile) {
       writeStream.on('finish', () => {
         resolve(localFile);
       });
-      writeStream.on('error', () => {
-        reject(new Error('Error writing stream.'));
+      writeStream.on('error', (err) => {
+        reject(new Error('Error writing stream:' + err));
       });
     }
     catch (err) {
